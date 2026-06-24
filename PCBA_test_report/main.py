@@ -151,8 +151,8 @@ def analyze_file(file_path: str) -> pd.DataFrame:
             "Outliers %": round(Outliers, 2),
             "Outlier Pixels": outlier_count,
             "Total Pixels": total_pixels,
-            "Min Value": round(float(np.min(mean_pixels)), 2),
-            "Max Value": round(float(np.max(mean_pixels)), 2),
+            "Min Value": round(float(np.min(frames_masked)), 2),
+            "Max Value": round(float(np.max(frames_masked)), 2),
             "Status": Status,
             "Raw Outliers %": round(Raw_Outliers, 2)
         })
@@ -306,7 +306,6 @@ for board in boards:
         'Total Pixels': 'first',
         'Min Value': 'min',
         'Max Value': 'max',
-        # 'Score': 'mean',
         'Error %': 'mean',
         'Status': lambda s: (
             'FAIL' if (s == 'FAIL').any()
@@ -349,10 +348,9 @@ for board in boards:
 
     # Table
     rows_table = len(CAP_LIST)+1
-    cols_table = 10
+    cols_table = 9
     headers = [
         'Cap',
-        # 'Score',
         'Error %',
         'Frame-to-Frame Noise (Avg)',
         'Outliers %',
@@ -388,19 +386,18 @@ for board in boards:
             out_vals.append(0.0)
         else:
             row_data = row.iloc[0]
-            # table.cell(r + 1, 1).text = f"{row_data['Score']:.2f}"
-            table.cell(r + 1, 2).text = f"{row_data['Error %']:.2f}"
-            table.cell(r + 1, 3).text = f"{row_data['Frame-to-Frame Noise (Avg)']:.2f}"
-            table.cell(r + 1, 4).text = f"{row_data['Outliers %']:.2f}"
+            table.cell(r + 1, 1).text = f"{row_data['Error %']:.2f}"
+            table.cell(r + 1, 2).text = f"{row_data['Frame-to-Frame Noise (Avg)']:.2f}"
+            table.cell(r + 1, 3).text = f"{row_data['Outliers %']:.2f}"
 
-            table.cell(r + 1, 5).text = str(int(row_data['Outlier Pixels']))
-            table.cell(r + 1, 6).text = str(int(row_data['Total Pixels']))
-            table.cell(r + 1, 7).text = f"{row_data['Min Value']:.2f}"
-            table.cell(r + 1, 8).text = f"{row_data['Max Value']:.2f}"
+            table.cell(r + 1, 4).text = str(int(row_data['Outlier Pixels']))
+            table.cell(r + 1, 5).text = str(int(row_data['Total Pixels']))
+            table.cell(r + 1, 6).text = f"{row_data['Min Value']:.2f}"
+            table.cell(r + 1, 7).text = f"{row_data['Max Value']:.2f}"
 
-            table.cell(r + 1, 9).text = row_data['Status']
+            table.cell(r + 1, 8).text = row_data['Status']
             # Color Status cell
-            cell = table.cell(r+1,9)
+            cell = table.cell(r+1,8)
             cell.fill.solid()
             if row_data['Status']=="PASS":
                 cell.fill.fore_color.rgb = RGBColor(0xD1,0xF2,0xD1)
