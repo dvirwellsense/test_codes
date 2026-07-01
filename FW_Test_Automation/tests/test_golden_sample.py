@@ -1,3 +1,4 @@
+import test_config as cfg
 from frame_parser import parse_matrix
 
 
@@ -21,16 +22,22 @@ def run(matrix, **kwargs):
     golden = load_golden_matrix()
 
     if len(matrix) != len(golden):
-        return False, "Row count mismatch"
+        return False, (
+            f"Row count mismatch: got {len(matrix)}, "
+            f"golden has {len(golden)}"
+        )
 
     bad_pixels = 0
     max_delta = 0
 
-    TOLERANCE = 5
+    data_cols = cfg.EXPECTED_NUM_DATA_COLS
 
     for row in range(len(matrix)):
 
-        for col in range(30):  # ללא רפרנסים
+        if len(matrix[row]) < data_cols or len(golden[row]) < data_cols:
+            return False, f"Row {row + 1}: not enough columns to compare"
+
+        for col in range(data_cols):  # without reference columns
 
             delta = abs(
                 matrix[row][col] -
@@ -42,7 +49,7 @@ def run(matrix, **kwargs):
                 delta
             )
 
-            if delta > TOLERANCE:
+            if delta > cfg.GOLDEN_TOLERANCE:
                 bad_pixels += 1
 
     if bad_pixels > 0:
@@ -50,7 +57,7 @@ def run(matrix, **kwargs):
         return (
             False,
             f"{bad_pixels} pixels differ "
-            f"(max delta={max_delta})"
+            f"(max delta={max_delta}, tolerance={cfg.GOLDEN_TOLERANCE})"
         )
 
     return (

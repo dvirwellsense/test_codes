@@ -1,13 +1,22 @@
-from fw_interface import FWInterface
+from fw_interface import FWInterface, FrameTimeoutError
 from frame_parser import parse_metadata
 from frame_parser import parse_matrix
 
 from tests import test_matrix
 from tests import test_reference_caps
 from tests import test_golden_sample
+from tests import test_metadata
+from tests import test_pixel_range
+from tests import test_frame_integrity
+from tests import test_repeatability
+from tests import test_required_fields
+from tests import test_ref_caps_config
+from tests import test_counters_sanity
+from tests import test_hex_integrity
 
 from datetime import datetime
 import os
+import sys
 import time
 
 
@@ -99,7 +108,14 @@ def main():
 
     start_time = time.time()
 
-    frame = fw.get_frame()
+    try:
+        frame = fw.get_frame()
+    except FrameTimeoutError as e:
+        print(f"ERROR: {e}")
+        print()
+        print("OVERALL RESULT: FAIL (no frame received)")
+        print()
+        sys.exit(1)
 
     frame_time = time.time() - start_time
 
@@ -132,9 +148,17 @@ def main():
     print()
 
     tests = [
+        ("Required Fields", test_required_fields.run),
+        ("Metadata", test_metadata.run),
+        ("Counters Sanity", test_counters_sanity.run),
+        ("Frame Integrity", test_frame_integrity.run),
         ("Matrix Size", test_matrix.run),
+        ("Pixel Range", test_pixel_range.run),
         ("Reference Caps", test_reference_caps.run),
+        ("RefCaps Config", test_ref_caps_config.run),
         ("Golden Sample", test_golden_sample.run),
+        ("Repeatability", test_repeatability.run),
+        ("HEX Integrity", test_hex_integrity.run),
     ]
 
     results = {}

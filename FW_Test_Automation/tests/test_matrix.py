@@ -1,11 +1,17 @@
+import test_config as cfg
+
+
 def run(matrix, **kwargs):
 
-    if len(matrix) != 60:
-        return False, f"Expected 60 rows, got {len(matrix)}"
+    if len(matrix) != cfg.EXPECTED_NUM_ROWS:
+        return False, f"Expected {cfg.EXPECTED_NUM_ROWS} rows, got {len(matrix)}"
 
-    for row in matrix:
+    for i, row in enumerate(matrix, start=1):
 
-        if len(row) != 33:
-            return False, f"Expected 33 cols, got {len(row)}"
+        if len(row) != cfg.EXPECTED_TOTAL_COLS:
+            return False, (
+                f"Row {i}: expected {cfg.EXPECTED_TOTAL_COLS} cols, "
+                f"got {len(row)}"
+            )
 
     return True, "Matrix size OK"
