@@ -72,3 +72,50 @@ MAX_HUMIDITY_JUMP_PCT = 10.0     # between 2 back-to-back frames
 # only live on-device tests without the build output at hand). ----
 HEX_FILE_PATH = None
 
+# ---- Serial port ----
+COM_PORT = "COM4"
+
+# ---- Mat-connect gate (main.py checks this before running the
+# mat-dependent test suite; a board can be tested with no mat, but
+# main.py should not silently run mat tests against a disconnected
+# board and report confusing failures) ----
+MAT_CONNECT_WAIT_SEC = 15.0   # how long to poll for MatConnected=true before aborting
+
+# ---- EEPROM metadata round-trip test values (test_eeprom_metadata_update).
+# These OVERWRITE the real board's stored values for the duration of the
+# test; the original values are snapshotted first and restored afterward. ----
+EEPROM_TEST_VALUES = {
+    "MatNum": "TEST-0001",
+    "ActiveRows": "01,60",
+    "ActiveColumns": "01,30",
+    "MatLifeTime": 12345,
+    "MatActiveTime": 6789,
+}
+PCBA_LIFETIME_TEST_VALUE = 111222
+
+# ---- LUT round-trip (test_lut_roundtrip). CSV file exported by the LT_GUI
+# tool: a header row, then "RowN,a1,b1,c1,d1,a2,..." per-pixel calibration
+# coefficient rows, then a "DEFAULT_LUT" marker line, a header line, and one
+# line of 4 default coefficients. Set LUT_FILE_PATH to enable; leave None to
+# skip. All float coefficients are scaled by LUT_SCALE_FACTOR and rounded to
+# int32 before being sent, matching the reference LT_GUI upload tool. ----
+LUT_FILE_PATH = r"C:\Users\dvirs\Documents\LT_GUI_Results\LUT_files\LUT_default_plus_10_1_60_1_30_EB.csv"
+LUT_SCALE_FACTOR = 10000
+
+# ---- FW update (fw_update_test.py - separate opt-in script, not part of
+# the default main.py run since it reflashes and reboots the board).
+# List of (hex_path, expected_FWVer_after_flash). Version strings below are
+# inferred from the filenames - confirm/adjust against the actual FWVer
+# each image reports. ----
+FW_UPDATE_IMAGES = [
+    (r"C:\Users\dvirs\Documents\Atmel Studio\7.0\NT_Bootloader_project\NT_PCBA_80\NT_usb\Debug\Version_02_17.hex", "02.17"),
+    (r"C:\Users\dvirs\Documents\Atmel Studio\7.0\NT_Bootloader_project\NT_PCBA_80\NT_usb\Debug\Version_02_09.hex", "02.09"),
+]
+FW_UPDATE_TIMEOUT_SEC = 60.0
+FW_UPDATE_REBOOT_TIMEOUT_SEC = 30.0
+
+# ---- WDT / Timer test (wdt_timer_test.py - separate opt-in script, not
+# part of the default main.py run since it blocks for ~10 minutes). ----
+WDT_EXPECTED_TIMEOUT_SEC = 600.0
+WDT_TIMEOUT_TOLERANCE_SEC = 30.0
+
