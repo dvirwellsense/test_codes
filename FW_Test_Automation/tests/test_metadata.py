@@ -1,4 +1,5 @@
 import test_config as cfg
+from frame_parser import parse_active_range
 
 
 def run(metadata, **kwargs):
@@ -63,42 +64,42 @@ def run(metadata, **kwargs):
             f"RelativeHumidity not numeric: {metadata.get('RelativeHumidity')}"
         )
 
-    # --- Active vs total rows/cols, consistent WITH the connection state ---
-    # (not simply "must equal total" - a disconnected mat is expected
-    # to report 0 active rows/cols, that is correct FW behavior)
+    # --- Active vs total rows/cols ---
+    # ActiveRows/ActiveColumns are "<start>,<end>" 1-based inclusive range
+    # strings (e.g. "1,60"), NOT plain integers - confirmed against the FW's
+    # parse_range_fixed() and against live hardware. NumOfRows/NumOfColumns
+    # ARE plain integers: the FW reports the active-derived size when a mat
+    # is connected, or the full physical grid size when it isn't.
+    #
+    # ActiveRows/ActiveColumns persist their last-configured range
+    # regardless of connection state (the FW does not zero them out on
+    # disconnect), so this check only applies while connected.
     try:
-        active_rows = int(metadata.get("ActiveRows", -1))
-        active_cols = int(metadata.get("ActiveColumns", -1))
         total_rows = int(metadata.get("NumOfRows", -1))
         total_cols = int(metadata.get("NumOfColumns", -1))
     except ValueError:
-        active_rows = active_cols = total_rows = total_cols = -1
-        problems.append("ActiveRows/ActiveColumns/NumOfRows/NumOfColumns not numeric")
+        total_rows = total_cols = -1
+        problems.append("NumOfRows/NumOfColumns not numeric")
 
     if mat_connected == "true":
 
+        try:
+            active_rows = parse_active_range(metadata.get("ActiveRows", ""))
+            active_cols = parse_active_range(metadata.get("ActiveColumns", ""))
+        except ValueError:
+            active_rows = active_cols = -1
+            problems.append("ActiveRows/ActiveColumns not a valid <start>,<end> range")
+
         if not (0 < active_rows <= total_rows):
             problems.append(
-                f"MatConnected=true but ActiveRows={active_rows} "
-                f"(expected 0 < ActiveRows <= {total_rows})"
+                f"MatConnected=true but active rows={active_rows} "
+                f"(expected 0 < active rows <= {total_rows})"
             )
 
         if not (0 < active_cols <= total_cols):
             problems.append(
-                f"MatConnected=true but ActiveColumns={active_cols} "
-                f"(expected 0 < ActiveColumns <= {total_cols})"
-            )
-
-    elif mat_connected == "false":
-
-        if active_rows != 0:
-            problems.append(
-                f"MatConnected=false but ActiveRows={active_rows} (expected 0)"
-            )
-
-        if active_cols != 0:
-            problems.append(
-                f"MatConnected=false but ActiveColumns={active_cols} (expected 0)"
+                f"MatConnected=true but active cols={active_cols} "
+                f"(expected 0 < active cols <= {total_cols})"
             )
 
     if problems:

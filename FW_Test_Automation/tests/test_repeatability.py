@@ -57,6 +57,13 @@ def run(fw, matrix, metadata, **kwargs):
         problems.append("RelativeHumidity not numeric in one of the frames")
 
     # --- Pixel-level noise between the 2 frames ---
+    # Only the data columns are held to REPEATABILITY_TOLERANCE - the 3
+    # reference-capacitor columns are a different measurement path and
+    # aren't known to share the same noise budget, so they're tracked
+    # separately (informational only) instead of being lumped into the
+    # same pass/fail check.
+    ref_max_delta = 0
+
     if len(matrix2) != len(matrix):
         problems.append(
             f"Row count changed between frames: "
@@ -67,6 +74,8 @@ def run(fw, matrix, metadata, **kwargs):
         bad_pixels = 0
         max_delta = 0
 
+        data_cols = cfg.EXPECTED_NUM_DATA_COLS
+
         for row_idx in range(len(matrix)):
 
             row1 = matrix[row_idx]
@@ -76,7 +85,7 @@ def run(fw, matrix, metadata, **kwargs):
                 problems.append(f"Row {row_idx + 1} length changed between frames")
                 break
 
-            for col_idx in range(len(row1)):
+            for col_idx in range(data_cols):
 
                 delta = abs(row1[col_idx] - row2[col_idx])
                 max_delta = max(max_delta, delta)
@@ -84,13 +93,21 @@ def run(fw, matrix, metadata, **kwargs):
                 if delta > cfg.REPEATABILITY_TOLERANCE:
                     bad_pixels += 1
 
+            for col_idx in range(data_cols, len(row1)):
+
+                ref_delta = abs(row1[col_idx] - row2[col_idx])
+                ref_max_delta = max(ref_max_delta, ref_delta)
+
         if bad_pixels > cfg.REPEATABILITY_MAX_BAD_PIXELS:
             problems.append(
-                f"{bad_pixels} pixels noisy between consecutive frames "
+                f"{bad_pixels} data pixels noisy between consecutive frames "
                 f"(max delta={max_delta}, tolerance={cfg.REPEATABILITY_TOLERANCE})"
             )
 
     if problems:
         return False, "; ".join(problems)
 
-    return True, "Frame advanced, env. stable, pixels stable across 2 frames"
+    return True, (
+        f"Frame advanced, env. stable, data pixels stable across 2 frames "
+        f"(ref cols max delta={ref_max_delta}, not gated on tolerance)"
+    )

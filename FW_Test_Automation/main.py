@@ -26,6 +26,8 @@ import time
 
 def run_test(name, func, **kwargs):
 
+    print(f"Running: {name} ...")
+
     try:
         result, msg = func(**kwargs)
 
@@ -237,6 +239,20 @@ def main():
         print()
 
         sys.exit(1)
+
+    # --- Let ADC readings settle before trusting pixel data. The very
+    # first frame right after MatConnected flips true can still reflect
+    # a not-yet-averaged/settled reading (observed as all-zero pixels
+    # and Ref1=0.0 on real hardware) - discard it and grab a fresh one. ---
+    print(
+        f"Mat connected - letting readings settle "
+        f"({cfg.MAT_SETTLE_SEC:.1f}s)..."
+    )
+
+    time.sleep(cfg.MAT_SETTLE_SEC)
+
+    frame = fw.get_frame()
+    metadata = parse_metadata(frame)
 
     matrix = parse_matrix(frame)
 

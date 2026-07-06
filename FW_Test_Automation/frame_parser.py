@@ -46,6 +46,26 @@ def get_row_numbers(frame):
     return row_numbers
 
 
+def parse_active_range(range_str):
+    """Parse a "<start>,<end>" 1-based inclusive range string - the
+    format the FW stores for the ActiveRows/ActiveColumns metadata
+    fields (e.g. "1,60"), confirmed against firmware's
+    parse_range_fixed() - into its element count.
+
+    Raises ValueError if the string isn't a valid 2-int range.
+    """
+
+    parts = range_str.split(",")
+
+    if len(parts) != 2:
+        raise ValueError(f"not a <start>,<end> range: {range_str!r}")
+
+    start = int(parts[0])
+    end = int(parts[1])
+
+    return end - start + 1
+
+
 def parse_matrix(frame):
 
     matrix = []

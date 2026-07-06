@@ -80,6 +80,17 @@ class FWInterface:
         return self._read_lines_until_idle(timeout, terminator)
 
     def _read_lines_until_idle(self, timeout, terminator=None):
+        """Read lines for a FIXED window of `timeout` seconds (or until
+        `terminator` is seen).
+
+        The FW continuously streams periodic ADC frame lines
+        regardless of any command being processed - it never actually
+        goes idle. An earlier version of this method reset its
+        deadline on every incoming line, which meant it would loop
+        forever (deadline kept getting pushed out by frame noise) and
+        never return for any command that has no `terminator`, e.g.
+        plain Get*/write commands. Do not "extend on activity" here.
+        """
 
         lines = []
 
@@ -96,14 +107,34 @@ class FWInterface:
 
             lines.append(line)
 
-            deadline = time.time() + timeout
-
             if terminator is not None and line == terminator:
                 break
 
         return lines
 
-    def send_lut_matrix(self, rows, timeout=15.0):
+    def _drain_input(self):
+        """Discard any bytes currently waiting in the input buffer,
+        without blocking.
+
+        Must be called periodically during any long write-heavy
+        operation (streaming LUT rows or a HEX file). The FW keeps
+        emitting unsolicited output (periodic frames, diagnostics)
+        independent of whatever command is in flight. If that output
+        is never read, it backs up in the FW's own USB CDC transmit
+        buffer; once that's full, the FW's `usb_printf()` calls block,
+        which (being on the same single-threaded main loop) also stops
+        it from reading any more incoming bytes - a two-way deadlock
+        that looks identical to a Python-side hang, but isn't one.
+        """
+
+        try:
+            waiting = self.ser.in_waiting
+            if waiting:
+                self.ser.read(waiting)
+        except Exception:
+            pass
+
+    def send_lut_matrix(self, rows, timeout=15.0, start_delay=0.1, row_delay=0.02, verbose=True):
         """Send the per-pixel LUT matrix via WriteMatLUT. `rows` is a
         list of (label, values) pairs, e.g. ("Row1", [0, 0, 0, 0, 60000, ...]),
         already scaled to the integer wire format (the FW only parses
@@ -113,21 +144,57 @@ class FWInterface:
         WriteMatLUT/END commands are sent with a bare "\\n", each row
         line with "\\r\\n". The FW's line tokenizer accepts either, but
         this matches the known-working implementation exactly.
+
+        Confirmed (by sending the exact same file through the
+        reference GUI tool to the exact same board, which succeeded)
+        that this isn't an FW/EEPROM capacity limitation - the actual
+        bug was this method never reading the input buffer while it
+        writes. See _drain_input()'s docstring: an unread FW transmit
+        buffer can stall the FW's main loop from within the write call
+        itself, which then also stops it from reading - a deadlock
+        that looks identical to a Python-side hang. The GUI tool likely
+        avoids this because the surrounding app has a background
+        reader thread always draining input, independent of the send
+        method itself. start_delay/row_delay mirror the reference
+        tool's `await Task.Yield()` pacing (kept as a harmless belt-
+        and-suspenders measure, though the drain is the actual fix).
         """
 
         self.ser.reset_input_buffer()
 
+        if verbose:
+            print(f"  [LUT] sending WriteMatLUT command ({len(rows)} rows)...")
+
         self.ser.write(b"WriteMatLUT\n")
 
-        for label, values in rows:
+        time.sleep(start_delay)
+
+        self._drain_input()
+
+        for i, (label, values) in enumerate(rows, start=1):
 
             line = label + "," + ",".join(str(v) for v in values)
 
+            if verbose:
+                print(f"  [LUT] sending {label} ({i}/{len(rows)}, {len(values)} values)...")
+
             self.ser.write((line + "\r\n").encode())
+
+            time.sleep(row_delay)
+
+            self._drain_input()
+
+        if verbose:
+            print("  [LUT] all rows sent, sending END and waiting for FW confirmation...")
 
         self.ser.write(b"END\n")
 
-        return self._read_lines_until_idle(timeout)
+        response = self._read_lines_until_idle(timeout)
+
+        if verbose:
+            print(f"  [LUT] WriteMatLUT response: {response}")
+
+        return response
 
     def flash_firmware(self, hex_path, timeout=60.0):
         """Send the `flash` command and stream an Intel-HEX file's
@@ -151,6 +218,8 @@ class FWInterface:
                     continue
 
                 self.ser.write((line + "\r\n").encode())
+
+                self._drain_input()
 
         return self._read_lines_until_idle(timeout)
 

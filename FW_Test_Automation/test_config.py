@@ -3,7 +3,7 @@
 # makes it easy to tune limits per HW revision without touching test logic.
 
 # ---- Expected identity ----
-EXPECTED_FW_VERSION = "02.16"      # set to None to skip the exact-match check
+EXPECTED_FW_VERSION = "02.17"      # set to None to skip the exact-match check
 EXPECTED_HW_VERSION = "80.16"      # set to None to skip the exact-match check
 
 # ---- Frame / matrix geometry ----
@@ -25,9 +25,12 @@ PIXEL_MAX = 4095         # 12-bit ADC ceiling - adjust to actual FW ADC width
 STUCK_ROW_MIN_UNIQUE = 2  # a row with fewer unique values than this is suspect
 
 # ---- Reference capacitor expected ranges (avg over all rows) ----
-REF1_RANGE = (600, 750)
-REF2_RANGE = (1200, 1450)
-REF3_RANGE = (1800, 2100)
+# Deliberately wide for now: there are two board variants, each measuring
+# a different drop, so their reference readings differ from each other.
+# Tighten these back down per-variant once both are characterized.
+REF1_RANGE = (400, 1000)
+REF2_RANGE = (900, 1800)
+REF3_RANGE = (1500, 2700)
 
 # ---- Repeatability (frame-to-frame noise) ----
 REPEATABILITY_TOLERANCE = 5       # max allowed |delta| per pixel between 2 consecutive frames
@@ -80,6 +83,12 @@ COM_PORT = "COM4"
 # main.py should not silently run mat tests against a disconnected
 # board and report confusing failures) ----
 MAT_CONNECT_WAIT_SEC = 15.0   # how long to poll for MatConnected=true before aborting
+
+# Once connected, the first frame(s) can still reflect a not-yet-settled
+# ADC average (observed on real hardware as an all-zero matrix and
+# Ref1=0.0) - wait this long and re-fetch a fresh frame before trusting
+# pixel data.
+MAT_SETTLE_SEC = 2.0
 
 # ---- EEPROM metadata round-trip test values (test_eeprom_metadata_update).
 # These OVERWRITE the real board's stored values for the duration of the
